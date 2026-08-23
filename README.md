@@ -17,26 +17,50 @@ Values built from other values in a `.env` file, resolved strictly: an unknown n
 never an empty string.
 
 [quillstack/dotenv](https://github.com/quillstack/dotenv) reads the file. This resolves what one
-value says about another, and it is a separate package because that is a separate decision —
-take it and you get `${SOMETHING}`; leave it and you pay nothing for a feature you do not use.
+value says about another, and it is a separate package because that is a separate decision.
 
-### Requirements
+## Why this exists
+
+`.env` has no specification. Running the same file through eight implementations across six
+languages, they disagree about nearly every case that is not the obvious one — whether a bare
+`$NAME` counts, whether a name defined further down the file may be used further up, what `\${`
+means, what `${NAME:-default}` does.
+
+On one case they agree, and it is the wrong one:
+
+```text
+PASSWORD=pa${ss}word
+```
+
+where `ss` is not defined anywhere. `symfony/dotenv`, `python-dotenv`, `dotenv-expand` for Node,
+Ruby's `dotenv`, Dart's `dotenv` and `dotenv-c` all return **`paword`**. No error, nothing empty,
+and an application starting with a password nobody chose.
+
+**That is the one behaviour this package refuses to copy.** Every rule here was chosen so that
+nothing has to be guessed, and where a guess would be needed it stops instead.
+
+It is a separate package for the same reason: interpolation turns a list of pairs into a small
+language, with escaping and ordering to think about. Take it and you get `${SOMETHING}`; leave
+it out and you pay nothing for it — and `quillstack/dotenv` refuses a file it cannot finish
+reading rather than handing you text that looks like an address and is not one.
+
+## Requirements
 
 - PHP 8.1 or newer
 
-### Installation
+## Installation
 
 ```shell
 composer require quillstack/dotenv-expand
 ```
 
-### Usage
+## Usage
 
 ```text
-BASE=https://example.org
-API=${BASE}/v1
-PORT=5432
-DSN=pgsql:host=localhost;port=${PORT}
+APP_HOST=api.example.org
+APP_URL=https://${APP_HOST}
+DB_PORT=5432
+DB_DSN=pgsql:host=127.0.0.1;port=${DB_PORT}
 ```
 
 ```php
@@ -46,9 +70,9 @@ use Quillstack\DotenvExpand\Expand;
 ```
 
 ```php
-env('API');   // 'https://example.org/v1'
-env('DSN');   // 'pgsql:host=localhost;port=5432'
-env('PORT');  // 5432, still a number
+env('APP_URL');   // 'https://api.example.org'
+env('DB_DSN');    // 'pgsql:host=127.0.0.1;port=5432'
+env('DB_PORT');   // 5432, still a number
 ```
 
 `parse()` reads without touching the environment, the same way round as the package underneath:
@@ -63,13 +87,9 @@ An already-built reader can be handed over instead of a path:
 (new Expand(new Dotenv('.env')))->load();
 ```
 
-### The rules, and why they are narrow
+## The rules, and why they are narrow
 
-`.env` has no specification. Every library that expands `${SOMETHING}` has picked its own rules,
-and they disagree with each other about nearly every case that is not the obvious one. On one
-case they agree, and it is the wrong one.
-
-#### An unknown name is an error
+### An unknown name is an error
 
 ```text
 PASSWORD=pa${ss}word
@@ -81,42 +101,42 @@ The value of `PASSWORD` uses `${ss}`, and `ss` is not defined above it in the fi
 the environment.
 ```
 
-Every other implementation compared against — `symfony/dotenv`, `python-dotenv`, `dotenv-expand`
-for Node, Ruby's `dotenv`, Dart's `dotenv`, `dotenv-c` — returns **`paword`**. No error, nothing
-empty, and an application starting with a password nobody chose. **That is not a feature to
-match.**
-
-#### Only names already known
+### Only names already known
 
 A name is resolved from what the file has already said, or from what the environment already
-held. Not from further down the file:
+held — never from further down the file:
 
 ```text
 FORWARD=${LATER}/x
 LATER=defined-after
 ```
 
-That is an error too. Otherwise a value depends on the order the file happens to be written in —
-and the libraries which allow it disagree about what it means: one resolves it, one leaves the
+That is an error too. Otherwise a value depends on the order the file happens to be written in,
+and the libraries that allow it disagree about what it means: one resolves it, one leaves the
 text, one throws.
 
-The environment this process started with counts as already known:
+The environment this process started with counts as already known, which is what makes a value
+depend on where it is deployed rather than on what is in the file:
 
 ```text
-BIN=${HOME}/bin
+BUCKET=uploads-${DEPLOY_REGION}
 ```
 
-#### Only `${NAME}`, never `$NAME`
+```php
+env('BUCKET');   // 'uploads-eu-central-1'
+```
+
+### Only `${NAME}`, never `$NAME`
 
 ```text
 PASSWORD=hunter2$SOMETHING
 ```
 
-That is a password, and it comes back whole. Half the implementations of this idea expand a bare
+That is a password and it comes back whole. Half the implementations of this idea expand a bare
 `$NAME` and half do not; passwords are full of dollar signs, and one quietly cut short is the
 worse of the two mistakes available.
 
-#### `\${` is a literal `${`
+### `\${` is a literal `${`
 
 ```text
 PRICE=\${9.99}
@@ -126,13 +146,13 @@ PRICE=\${9.99}
 env('PRICE');   // '${9.99}'
 ```
 
-Four of the libraries compared against get this wrong the same way: they keep the backslash
-*and* expand, giving `\https://example.org/v3`.
+Four of the libraries measured below get this wrong the same way: they keep the backslash *and*
+expand, giving `\https://example.org/v3`.
 
-#### No `${NAME:-default}`
+### No `${NAME:-default}`
 
-A shell expression, not a `.env` one. Ruby and Dart return the text `:-fallback}` for it, which
-is neither the default nor an error. A default belongs where it can be read:
+A shell expression, not a `.env` one. Ruby's and Dart's libraries return the text `:-fallback}`
+for it, which is neither the default nor an error. A default belongs where it can be read:
 
 ```php
 env('MISSING', 'fallback');
@@ -152,21 +172,108 @@ MESSAGE=debug is ${DEBUG} here
 env('MESSAGE');   // 'debug is false here'
 ```
 
-### Tests
+## Building on what was already resolved
+
+A resolved value is simply a value, so the next line can use it:
+
+```text
+APP_ENV=production
+LOG_PATH=/var/log/${APP_ENV}
+UPLOADS=${LOG_PATH}/uploads
+```
+
+```php
+env('LOG_PATH');   // '/var/log/production'
+env('UPLOADS');    // '/var/log/production/uploads'
+```
+
+## Making it optional
+
+An application can work whether or not this package is installed:
+
+```php
+use Quillstack\Dotenv\Dotenv;
+use Quillstack\DotenvExpand\Expand;
+
+$path = __DIR__ . '/../.env';
+
+class_exists(Expand::class)
+    ? (new Expand($path))->load()
+    : (new Dotenv($path))->load();
+```
+
+With it installed, `${SOMETHING}` resolves. Without it, a `.env` that uses one is refused and
+says so:
+
+```text
+DotenvInterpolationNotSupportedException:
+The value of `API` uses `${...}`, which this package does not expand. Install
+quillstack/dotenv-expand to resolve it, or write `\${` for a literal `${`.
+```
+
+Which means the fallback is honest: an application never silently loads a half-read file because
+somebody forgot a dependency.
+
+## Benchmark
+
+Measured with [quillstack/benchmark](https://github.com/quillstack/benchmark) on a `.env` of 18
+keys, 8 of which refer to another value. All four produce identical results for that file — the
+comparison is like for like.
+
+Runs are interleaved and each figure is the median of three.
+
+| | Version |
+| --- | --- |
+| PHP | 8.5.7 |
+| quillstack/dotenv-expand | v0.6.0 (on quillstack/dotenv v0.7.0) |
+| symfony/dotenv | v7.4.15 |
+| josegonzalez/dotenv | 4.0.0 (on m1/env 2.2.0) |
+| vlucas/phpdotenv | v5.6.4 |
+
+**A single load in a fresh process** — how a `.env` is actually read: once, at the start:
+
+| | Time | Relative |
+| --- | --- | --- |
+| **quillstack/dotenv-expand** | **1.03 ms** | — |
+| symfony/dotenv | 1.52 ms | 1.5× |
+| josegonzalez/dotenv | 1.57 ms | 1.5× |
+| vlucas/phpdotenv | 4.60 ms | 4.5× |
+
+**Resolving alone**, a thousand times in a warm process, with class loading out of the way:
+
+| | Per load | Relative |
+| --- | --- | --- |
+| **quillstack/dotenv-expand** | **78 µs** | — |
+| josegonzalez/dotenv | 124 µs | 1.6× |
+| symfony/dotenv | 135 µs | 1.7× |
+| vlucas/phpdotenv | 187 µs | 2.4× |
+
+What the numbers do not say: `symfony/dotenv` and `vlucas/phpdotenv` also read `.env.local`
+layering, shell command substitution and `${NAME:-default}`, none of which is here. **Being
+faster because you do less is not being faster** — what this package claims is the strictness,
+and the speed is what strictness happens to cost, which is nothing.
+
+`benchmark:console` reports `Took` and `calls per second` too; both are dominated by PHP
+process start-up, identical for every library. The figure that means anything is
+`avg call time`, which each measured script reports about itself.
+
+## Tests
 
 ```shell
 composer test
 composer stan
 ```
 
-### The rest of Quillstack
+## The rest of Quillstack
 
 This is one component of [Quillstack](https://github.com/quillstack), a PHP framework which is
 as simple to use as it is strict about what it does.
 
 - [quillstack/dotenv](https://github.com/quillstack/dotenv) — reading the file
 - [quillstack/config](https://github.com/quillstack/config) — settings built on top of it
+- [quillstack/framework](https://github.com/quillstack/framework) — where both are wired in
+- [quillstack/benchmark](https://github.com/quillstack/benchmark) — what produced the table above
 
-### License
+## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/quillstack/dotenv-expand/blob/main/LICENSE).
