@@ -216,46 +216,47 @@ somebody forgot a dependency.
 
 ## Benchmark
 
-Measured with [quillstack/benchmark](https://github.com/quillstack/benchmark) on a `.env` of 18
-keys, 8 of which refer to another value. All four produce identical results for that file — the
-comparison is like for like.
-
-Runs are interleaved and each figure is the median of three.
+Measured with [quillstack/benchmark](https://github.com/quillstack/benchmark) on **one file of
+37 keys, 8 of which are built from another value**. Runs are interleaved, each figure is the
+median of five, and PHP is 8.5.7.
 
 | | Version |
 | --- | --- |
-| PHP | 8.5.7 |
-| quillstack/dotenv-expand | v0.6.0 (on quillstack/dotenv v0.7.0) |
+| quillstack/dotenv-expand | v0.6.1 (on quillstack/dotenv v0.7.1) |
 | symfony/dotenv | v7.4.15 |
 | josegonzalez/dotenv | 4.0.0 (on m1/env 2.2.0) |
 | vlucas/phpdotenv | v5.6.4 |
 
-**A single load in a fresh process** — how a `.env` is actually read: once, at the start:
-
-| | Time | Relative |
-| --- | --- | --- |
-| **quillstack/dotenv-expand** | **1.03 ms** | — |
-| symfony/dotenv | 1.52 ms | 1.5× |
-| josegonzalez/dotenv | 1.57 ms | 1.5× |
-| vlucas/phpdotenv | 4.60 ms | 4.5× |
-
-**Resolving alone**, a thousand times in a warm process, with class loading out of the way:
+All four resolve that file to the same values. Reading it, once:
 
 | | Per load | Relative |
 | --- | --- | --- |
-| **quillstack/dotenv-expand** | **78 µs** | — |
-| josegonzalez/dotenv | 124 µs | 1.6× |
-| symfony/dotenv | 135 µs | 1.7× |
-| vlucas/phpdotenv | 187 µs | 2.4× |
+| **quillstack/dotenv-expand** | **190 µs** | — |
+| symfony/dotenv | 266 µs | 1.40× |
+| josegonzalez/dotenv | 275 µs | 1.44× |
+| vlucas/phpdotenv | 470 µs | 2.47× |
+| quillstack/dotenv alone | *refuses the file* | — |
 
-What the numbers do not say: `symfony/dotenv` and `vlucas/phpdotenv` also read `.env.local`
-layering, shell command substitution and `${NAME:-default}`, none of which is here. **Being
-faster because you do less is not being faster** — what this package claims is the strictness,
-and the speed is what strictness happens to cost, which is nothing.
+The last row is the point of the arrangement rather than a gap in it:
+[quillstack/dotenv](https://github.com/quillstack/dotenv) cannot finish reading a file that uses
+`${…}`, so it stops and names this package instead of handing back the literal text.
 
-`benchmark:console` reports `Took` and `calls per second` too; both are dominated by PHP
-process start-up, identical for every library. The figure that means anything is
-`avg call time`, which each measured script reports about itself.
+### What it costs to add
+
+On a file with no interpolation in it at all — where this package has nothing to resolve and is
+pure overhead — the reader alone takes 146 µs and the pair takes 176 µs. **Adding interpolation
+costs about a fifth of the reading time**, and that table is in
+[quillstack/dotenv](https://github.com/quillstack/dotenv)'s README, measured the same way on the
+same machine so the two can be compared.
+
+**What the numbers do not say:** `symfony/dotenv` and `vlucas/phpdotenv` also read `.env.local`
+layering, shell command substitution and `${NAME:-default}`, none of which is here. Being faster
+because you do less is not being faster — what this package claims is the strictness, and the
+speed is what that strictness happens to cost, which is nothing.
+
+`benchmark:console` reports `Took` and `calls per second` too; both are dominated by PHP process
+start-up, identical for every library. The figure that means anything is `avg call time`, which
+each measured script reports about itself.
 
 ## Tests
 
