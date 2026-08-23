@@ -1,0 +1,45 @@
+{
+    "name": "quillstack/dotenv-expand",
+    "description": "Values built from other values in a .env file, resolved strictly: an unknown name is an error, never an empty string.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "dotenv",
+        "env",
+        "environment",
+        "interpolation",
+        "quillstack",
+        "php8"
+    ],
+    "homepage": "https://quillstack.org/packages/dotenv-expand",
+    "authors": [
+        {
+            "name": "Radek Ziemniewicz",
+            "email": "radek@quillstack.org"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "quillstack/dotenv": "^0.7"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.0",
+        "quillstack/unit-tests": "^0.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "Quillstack\\DotenvExpand\\": "src/",
+            "Quillstack\\DotenvExpand\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "unit-tests",
+        "test:coverage": "phpdbg -qrr ./vendor/bin/unit-tests",
+        "stan": "phpstan analyse"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.6.x-dev"
+        }
+    }
+}
