@@ -4,6 +4,13 @@
 [![Latest Version](https://img.shields.io/packagist/v/quillstack/dotenv-expand.svg)](https://packagist.org/packages/quillstack/dotenv-expand)
 [![Downloads](https://img.shields.io/packagist/dt/quillstack/dotenv-expand.svg)](https://packagist.org/packages/quillstack/dotenv-expand)
 [![PHP Version](https://img.shields.io/packagist/php-v/quillstack/dotenv-expand)](https://packagist.org/packages/quillstack/dotenv-expand)
+[![StyleCI](https://github.styleci.io/repos/1344010795/shield?branch=main)](https://github.styleci.io/repos/1344010795?branch=main)
+[![CodeFactor](https://www.codefactor.io/repository/github/quillstack/dotenv-expand/badge)](https://www.codefactor.io/repository/github/quillstack/dotenv-expand)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=quillstack_dotenv-expand&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=quillstack_dotenv-expand)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=quillstack_dotenv-expand&metric=coverage)](https://sonarcloud.io/summary/new_code?id=quillstack_dotenv-expand)
+[![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=quillstack_dotenv-expand&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=quillstack_dotenv-expand)
+[![Reliability](https://sonarcloud.io/api/project_badges/measure?project=quillstack_dotenv-expand&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=quillstack_dotenv-expand)
+[![Security](https://sonarcloud.io/api/project_badges/measure?project=quillstack_dotenv-expand&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=quillstack_dotenv-expand)
 [![License](https://img.shields.io/packagist/l/quillstack/dotenv-expand)](https://github.com/quillstack/dotenv-expand/blob/main/LICENSE)
 
 Values built from other values in a `.env` file, resolved strictly: an unknown name is an error,
